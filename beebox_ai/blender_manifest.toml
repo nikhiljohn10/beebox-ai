@@ -1,0 +1,19 @@
+schema_version = "1.0.0"
+
+version = "0.1.0"
+type = "add-on"
+id = "beebox_ai"
+name = "BeeBox AI"
+tagline = "AI tool for creating objects and manipulating them using scripts"
+maintainer = "Nikhil John <nikhiljohn1010@gmail.com>"
+website = "https://github.com/nikhiljohn10/beebox-ai"
+license = ["SPDX:GPL-3.0-or-later", ]
+blender_version_min = "4.3.0"
+blender_version_max = "4.5.0"
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "/.git/",
+  "/*.zip",
+]
