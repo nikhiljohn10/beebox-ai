@@ -2,7 +2,7 @@ import bpy
 import asyncio
 from . import api
 from .services import get_openai_client
-from .utils import error_popup, get_textfile
+from .utils import error_popup, get_preferences, File
 
 
 class BEEBOXAI_OT_send_message(bpy.types.Operator):
@@ -12,22 +12,23 @@ class BEEBOXAI_OT_send_message(bpy.types.Operator):
 
     async def stream(self, context, prompt):
         error = ""
-        retry = 3
-        file = get_textfile(context)
-        try:
-            while file is None:
-                bpy.ops.text.new()
-                file = get_textfile(context)
-                retry -= 1
-                if retry == 0:
-                    raise RuntimeError("Unable to create a new text file")
+        pref = get_preferences()
 
-            # if file.as_string() != "":
-            #     input_text = "\n" + input_text
+        if context.scene.beebox_ai_reset:
+            File.delete_active_file(context)
+
+        file = File(context)
+        try:
+
+            if file.is_not_empty():
+                file.write("\n\n")
+
+            if pref.comment_prompt:
+                file.write("# Prompt: " + prompt + "\n")
 
             client = get_openai_client()
             try:
-                await client.stream(bpy.data.texts[file.name].write, prompt)
+                await client.stream(file.write, prompt)
             except api.APIConnectionError as e:
                 error = f"The OpenAI server could not be reached: {e.__cause__}"
             except api.AuthenticationError as e:
@@ -53,7 +54,7 @@ class BEEBOXAI_OT_send_message(bpy.types.Operator):
             error_popup(error)
 
     def execute(self, context):
-        input_text = context.scene.ai_text_input
+        input_text = context.scene.beebox_ai_prompt
         if input_text == "":
             return {"CANCELLED"}
 
@@ -61,13 +62,13 @@ class BEEBOXAI_OT_send_message(bpy.types.Operator):
         try:
             asyncio.get_event_loop().run_until_complete(task)
         except api.PermissionDeniedError as e:
-            print("Permission Error:",e)
+            print("Permission Error:", e)
         except api.APIConnectionError as e:
-            print("Connection Error:",e)
+            print("Connection Error:", e)
         except api.APIError as e:
-            print("API Error:",e)
+            print("API Error:", e)
         except Exception as e:
-            print("Exception:",e)
+            print("Exception:", e)
         else:
             return {"FINISHED"}
         return {"CANCELLED"}

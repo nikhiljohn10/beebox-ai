@@ -8,7 +8,9 @@ from bpy.props import (  # type: ignore
 )
 
 
-class BEEBOXAI_Preferences(bpy.types.AddonPreferences, OpenAIProperties, AzureOpenAIProperties):
+class BEEBOXAI_Preferences(
+    bpy.types.AddonPreferences, OpenAIProperties, AzureOpenAIProperties
+):
     bl_idname = __package__
 
     tab: EnumProperty(
@@ -31,6 +33,12 @@ class BEEBOXAI_Preferences(bpy.types.AddonPreferences, OpenAIProperties, AzureOp
         default="AZUREOPENAI",
     )
 
+    comment_prompt: BoolProperty(
+        name="Add prompt as comment",
+        description="Add prompt as comment to the generated code",
+        default=False,
+    )
+
     run_script: BoolProperty(
         name="Run Script",
         description="Run the script after generating",
@@ -39,6 +47,7 @@ class BEEBOXAI_Preferences(bpy.types.AddonPreferences, OpenAIProperties, AzureOp
 
     def draw_general(self, layout):
         layout.label(text="General Settings:")
+        layout.prop(self, "comment_prompt")
         layout.prop(self, "run_script")
 
     def draw_ai_service(self, layout):
