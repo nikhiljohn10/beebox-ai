@@ -33,6 +33,12 @@ class BEEBOXAI_Preferences(
         default="AZUREOPENAI",
     )
 
+    include_code: BoolProperty(
+        name="Include existing code with prompt",
+        description="Include the existing code from the active text editor with the prompt",
+        default=False,
+    )
+
     comment_prompt: BoolProperty(
         name="Add prompt as comment",
         description="Add prompt as comment to the generated code",
@@ -47,6 +53,7 @@ class BEEBOXAI_Preferences(
 
     def draw_general(self, layout):
         layout.label(text="General Settings:")
+        layout.prop(self, "include_code")
         layout.prop(self, "comment_prompt")
         layout.prop(self, "run_script")
 

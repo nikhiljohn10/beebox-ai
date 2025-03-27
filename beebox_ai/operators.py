@@ -2,7 +2,7 @@ import bpy
 import asyncio
 from . import api
 from .services import get_openai_client
-from .utils import error_popup, get_preferences, ScriptFile
+from .utils import error_popup
 
 
 class BEEBOXAI_OT_send_message(bpy.types.Operator):
@@ -13,18 +13,9 @@ class BEEBOXAI_OT_send_message(bpy.types.Operator):
     async def stream(self, context, prompt):
         error = ""
         try:
-            file = ScriptFile(context)
-            if context.scene.beebox_ai_reset:
-                file.clear_text()
-            elif file.is_not_empty():
-                file.write("\n\n")
-
-            if get_preferences().comment_prompt:
-                file.write("# Prompt: " + prompt + "\n\n")
-
             client = get_openai_client()
             try:
-                await client.stream(file.write, prompt)
+                await client.stream(context, prompt)
             except api.APIConnectionError as e:
                 error = f"The OpenAI server could not be reached: {e.__cause__}"
             except api.AuthenticationError as e:

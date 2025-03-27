@@ -10,7 +10,7 @@ from openai import (
     APIError,
 )
 
-from .utils import get_preferences
+from .utils import Message, ScriptFile, get_preferences
 
 Client = BaseClient
 
@@ -27,46 +27,106 @@ class APIUtils:
         if get_preferences().run_script:
             bpy.ops.text.run_script()
 
-    @property
-    def _instruction(self):
-        return """
-Given a task description, produce a detailed python code using Blender's 'bpy' module to complete the task effectively.
+    def preprocess(self, file: ScriptFile, prompt: str):
+        code = None
+        pref = get_preferences()
+        if file.is_not_empty and pref.include_code:
+            code = file.selected_text if file.is_selected else file.text
+        if not file.is_selected:
+            file.move_cursor_last()
+        file.write("\n")
+        return code
 
-# Guidelines
+    def _instruction(self, file: ScriptFile, code: str):
+        instruction = """
+Given a task description, produce a detailed Python code using Blender's "bpy" module (version 4.3.0) under Python 3.11 to complete the task effectively. Follow these guidelines:
 
-- Understand the Task: Grasp the main objective, goals, requirements, constraints, and expected output. Then generate 3D models and manipulate them or carry out other related tasks in Blender.
-- Minimal Changes: If an existing code is provided, improve it only if it's simple. For complex prompts, enhance clarity and add missing elements without altering the original structure.
-- Clarity and Conciseness: Use clear, specific language to comment the code. Avoid unnecessary instructions or bland statements.
-- Formatting: Use python PEP8 style. Do not include any additional commentary, only output the completed code. SPECIFICALLY, do not include any additional messages at the start or end of the code. (e.g. no "---")
-- Error Handling: Ensure the code is error-free and runs without issues. Handle exceptions if necessary.
-- Documentation: Include inline comments to explain the code logic and functionality. Describe the purpose of each function, method, or block of code.
-- Reusability: Write modular code that can be reused for similar tasks in the future. Use functions and classes where appropriate.
-- Efficiency: Optimize the code for performance and resource usage. Use the most efficient methods and algorithms to complete the task.
-- Output Format: Python 3.11 code with documentation as inline comments. Use version 4.3.0 of bpy module. Do not use any external libraries. Do not delete existing objects.  Do not encapsulate the code with triple quotes. Never include any non-code related information or text.
+1. Understand the Task
+    - Grasp the main objective, goals, requirements, constraints, and expected output.
+    - Generate or manipulate 3D models (or perform other related actions) in Blender based on the task description.
+
+2. Minimal Changes
+    - If existing code is present, improve it only if it is simple.
+    - For complex tasks, clarify and add missing elements without altering the original structure.
+
+3. Clarity and Conciseness
+    - Use clear, specific language to comment the code.
+    - Avoid unnecessary instructions or redundant statements.
+
+4. Formatting
+    - Follow Python’s PEP 8 style.
+    - Do not include any additional commentary in the output (e.g., no separators like "---").
+    - Do not wrap the output code in triple quotes or Markdown formatting.
+
+5. Error Handling
+    - Ensure the code runs without issues.
+    - Include exception handling if necessary.
+
+6. Documentation
+    - Provide inline comments explaining the code logic and functionality.
+    - Describe the purpose of each function, method, or block of code.
+7. Reusability
+    - Write modular code using functions and classes where appropriate.
+    - Ensure it is easily adaptable for similar tasks.
+
+8. Efficiency
+    - Optimize for performance and resource usage.
+    - Use efficient methods and algorithms.
+
+9. Output Format
+    - Include only the Python code required for the solution.
+    - Adhere strictly to Python 3.11 and bpy 4.3.0 with no external libraries.
+    - Do not delete existing objects in the scene.
+
+10. Blender Script Editor Addon Context
+    - This code will be appended to existing code in the Blender Script Editor.
+    - If a module is already imported, do not re-import it.
+    - Ignore all comments in the existing code and focus only on its logic and structure.
 """
+        if code is not None and get_preferences().include_code:
+            instruction += "\n\n11. When existing code is present"
+            if file.is_selected:
+                instruction += (
+                    "\n\t- Existing code is to be replaced by output code by the addon."
+                )
+            else:
+                instruction += "\n\t- Output code is to be appended to the end of existing code by the addon."
 
-    async def stream(self, write: callable, prompt: str):
+        instruction += "\n\nEnsure the final output is strictly the Python code fulfilling the above requirements, with no additional text or messages."
+        return instruction
+
+    async def stream(self, context: bpy.types.Context, prompt: str):
         if self.client is None:
             raise ModuleNotFoundError("Client is not found")
+
+        code = None
+        file = ScriptFile(context)
+        if context.scene.beebox_ai_reset:
+            file.clear_text()
+        else:
+            code = self.preprocess(file, prompt)
+        messages = Message(self._instruction(file, code))
+        if code is not None:
+            messages.add_user_message(code)
+        messages.add_user_message(prompt)
+
+        if get_preferences().comment_prompt:
+            file.write("# Prompt: " + prompt + "\n\n")
+
         async with self.client.beta.chat.completions.stream(
-            messages=[
-                {
-                    "role": "system",
-                    "content": self._instruction,
-                },
-                {"role": "user", "content": prompt},
-            ],
+            messages=messages(),
             max_tokens=8192,
             temperature=0.2,
             top_p=0.1,
             model=self.model,
         ) as stream:
+
             async for event in stream:
                 if event.type == "chunk":
                     try:
                         content = event.chunk.choices[0].delta.content
                         if content is not None:
-                            write(content)
+                            file.write(content)
                     except IndexError:
                         pass
                 elif event.type == "content.done":
@@ -75,4 +135,3 @@ Given a task description, produce a detailed python code using Blender's 'bpy' m
                 elif event.type == "error":
                     print("Error in stream:", event.error)
                     break
-
