@@ -29,13 +29,21 @@ class APIUtils:
 
     @property
     def _instruction(self):
-        return (
-            "You are an AI that helps generate 3D models and manipulate them via "
-            "Blender's Python API. Provide very efficient and error free python "
-            "script only as result. Do not encapsulate the code with triple quotes."
-            "Provide documentation using inline comments. Never reply with any non-code"
-            " information. Do not use any external libraries. Do not delete existing objects."
-        )
+        return """
+Given a task description, produce a detailed python code using Blender's 'bpy' module to complete the task effectively.
+
+# Guidelines
+
+- Understand the Task: Grasp the main objective, goals, requirements, constraints, and expected output. Then generate 3D models and manipulate them or carry out other related tasks in Blender.
+- Minimal Changes: If an existing code is provided, improve it only if it's simple. For complex prompts, enhance clarity and add missing elements without altering the original structure.
+- Clarity and Conciseness: Use clear, specific language to comment the code. Avoid unnecessary instructions or bland statements.
+- Formatting: Use python PEP8 style. Do not include any additional commentary, only output the completed code. SPECIFICALLY, do not include any additional messages at the start or end of the code. (e.g. no "---")
+- Error Handling: Ensure the code is error-free and runs without issues. Handle exceptions if necessary.
+- Documentation: Include inline comments to explain the code logic and functionality. Describe the purpose of each function, method, or block of code.
+- Reusability: Write modular code that can be reused for similar tasks in the future. Use functions and classes where appropriate.
+- Efficiency: Optimize the code for performance and resource usage. Use the most efficient methods and algorithms to complete the task.
+- Output Format: Python 3.11 code with documentation as inline comments. Use version 4.3.0 of bpy module. Do not use any external libraries. Do not delete existing objects.  Do not encapsulate the code with triple quotes. Never include any non-code related information or text.
+"""
 
     async def stream(self, write: callable, prompt: str):
         if self.client is None:
@@ -48,9 +56,9 @@ class APIUtils:
                 },
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=4096,
-            temperature=1.0,
-            top_p=1.0,
+            max_tokens=8192,
+            temperature=0.2,
+            top_p=0.1,
             model=self.model,
         ) as stream:
             async for event in stream:
