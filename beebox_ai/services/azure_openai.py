@@ -12,6 +12,7 @@ from ..api import APIUtils
 
 class AzureOpenAiAPI(Service, APIUtils):
     service_item = ("AZUREOPENAI", "Azure OpenAI", "Settings for Azure OpenAI")
+    # response_api_allowed_models = ["gpt-4o", "gpt-4o-mini"] # TODO: adapt to response api
 
     def __init__(self):
         super(APIUtils, self).__init__()

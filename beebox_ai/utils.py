@@ -1,6 +1,6 @@
 import bpy
 
-class File:
+class ScriptFile:
     def __init__(self, context):
         self._file = self.get(context)
         if self._file is None:
@@ -23,6 +23,10 @@ class File:
     def write(self, text):
         if self.is_active:
             bpy.data.texts[self._file.name].write(text)
+
+    def clear_text(self):
+        if self.is_active:
+            self._file.clear()
     
     @staticmethod
     def delete_all():

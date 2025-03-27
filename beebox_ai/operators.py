@@ -2,7 +2,7 @@ import bpy
 import asyncio
 from . import api
 from .services import get_openai_client
-from .utils import error_popup, get_preferences, File
+from .utils import error_popup, get_preferences, ScriptFile
 
 
 class BEEBOXAI_OT_send_message(bpy.types.Operator):
@@ -12,19 +12,15 @@ class BEEBOXAI_OT_send_message(bpy.types.Operator):
 
     async def stream(self, context, prompt):
         error = ""
-        pref = get_preferences()
-
-        if context.scene.beebox_ai_reset:
-            File.delete_active_file(context)
-
-        file = File(context)
         try:
-
-            if file.is_not_empty():
+            file = ScriptFile(context)
+            if context.scene.beebox_ai_reset:
+                file.clear_text()
+            elif file.is_not_empty():
                 file.write("\n\n")
 
-            if pref.comment_prompt:
-                file.write("# Prompt: " + prompt + "\n")
+            if get_preferences().comment_prompt:
+                file.write("# Prompt: " + prompt + "\n\n")
 
             client = get_openai_client()
             try:
